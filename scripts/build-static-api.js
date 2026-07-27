@@ -5,9 +5,12 @@ const SVG_DIR = path.join(process.cwd(), 'svg');
 const PUBLIC_API_DIR = path.join(process.cwd(), 'public', 'api');
 const PUBLIC_SVG_DIR = path.join(process.cwd(), 'public', 'svg');
 
+const PUBLIC_FILES_DIR = path.join(process.cwd(), 'public', 'files');
+
 // Ensure directories exist
 fs.mkdirSync(path.join(PUBLIC_API_DIR, 'libraries'), { recursive: true });
 fs.mkdirSync(PUBLIC_SVG_DIR, { recursive: true });
+fs.mkdirSync(PUBLIC_FILES_DIR, { recursive: true });
 
 function getLibrariesData() {
   if (!fs.existsSync(SVG_DIR)) return [];
@@ -124,7 +127,27 @@ function getLibrariesData() {
       );
     }
 
-    // Build search array
+    // Also create static raw SVG files in public/files and public/svg for direct browser URL access
+    const publicLibSvgDirs = [
+      path.join(PUBLIC_SVG_DIR, folder),
+      path.join(PUBLIC_FILES_DIR, folder)
+    ];
+    if (encodeURIComponent(folder) !== folder) {
+      publicLibSvgDirs.push(
+        path.join(PUBLIC_SVG_DIR, encodeURIComponent(folder)),
+        path.join(PUBLIC_FILES_DIR, encodeURIComponent(folder))
+      );
+    }
+    for (const d of publicLibSvgDirs) {
+      fs.mkdirSync(d, { recursive: true });
+    }
+
+    if (fs.existsSync(jsonPath)) {
+      fs.copyFileSync(jsonPath, path.join(PUBLIC_SVG_DIR, folder, 'svg.json'));
+      fs.copyFileSync(jsonPath, path.join(PUBLIC_FILES_DIR, folder, 'svg.json'));
+    }
+
+    // Build search array & save individual raw SVG files
     const height = libData.info.height || 24;
     for (const iconKey of iconKeys) {
       const iconObj = libData.icons[iconKey];
@@ -136,13 +159,19 @@ function getLibrariesData() {
         height: iconObj.height || height,
         width: iconObj.width || height,
       });
-    }
 
-    // Also copy folder to public/svg for static raw svg file access
-    const publicLibDir = path.join(PUBLIC_SVG_DIR, folder);
-    fs.mkdirSync(publicLibDir, { recursive: true });
-    if (fs.existsSync(jsonPath)) {
-      fs.copyFileSync(jsonPath, path.join(publicLibDir, 'svg.json'));
+      // Construct complete valid SVG document
+      const iconHeight = iconObj.height || height;
+      const iconWidth = iconObj.width || iconObj.height || height;
+      const viewBox = iconObj.viewBox || `0 0 ${iconWidth} ${iconHeight}`;
+      let fullSvg = (iconObj.body || '').trim();
+      if (!fullSvg.startsWith('<svg')) {
+        fullSvg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="${viewBox}" width="${iconWidth}" height="${iconHeight}">${fullSvg}</svg>`;
+      }
+
+      for (const d of publicLibSvgDirs) {
+        fs.writeFileSync(path.join(d, `${iconKey}.svg`), fullSvg, 'utf-8');
+      }
     }
   }
 
