@@ -7,6 +7,38 @@ import { GlobalSearchResults } from './components/GlobalSearchResults';
 import { SvgLibrarySummary, SvgIconDetail } from './types';
 import { Search, Filter } from 'lucide-react';
 
+// Helper for fetching JSON with static fallback for static hosts (Cloudflare Pages, Vercel, etc.)
+async function fetchJsonSafely(url: string, fallbackUrl?: string) {
+  try {
+    const res = await fetch(url);
+    if (res.ok) {
+      const text = await res.text();
+      if (text && text.trim().startsWith('{')) {
+        const data = JSON.parse(text);
+        if (data && data.success !== false) return data;
+      }
+    }
+  } catch (e) {
+    console.warn(`Primary API fetch failed for ${url}, trying fallback...`, e);
+  }
+
+  if (fallbackUrl) {
+    try {
+      const res = await fetch(fallbackUrl);
+      if (res.ok) {
+        const text = await res.text();
+        if (text && text.trim().startsWith('{')) {
+          const data = JSON.parse(text);
+          if (data && data.success !== false) return data;
+        }
+      }
+    } catch (e) {
+      console.error(`Fallback fetch failed for ${fallbackUrl}`, e);
+    }
+  }
+  return null;
+}
+
 export default function App() {
   const [libraries, setLibraries] = useState<SvgLibrarySummary[]>([]);
   const [loading, setLoading] = useState(true);
@@ -44,15 +76,14 @@ export default function App() {
     setLoading(true);
     setError(null);
     try {
-      const res = await fetch('/api/libraries');
-      const data = await res.json();
-      if (data.success) {
-        setLibraries(data.libraries || []);
+      const data = await fetchJsonSafely('/api/libraries', '/api/libraries.json');
+      if (data && data.success && Array.isArray(data.libraries)) {
+        setLibraries(data.libraries);
       } else {
-        throw new Error(data.error || '載入圖標庫失敗');
+        throw new Error('無法載入圖標庫');
       }
     } catch (err: any) {
-      setError(err.message);
+      setError(err.message || '載入圖標庫時發生未知錯誤');
     } finally {
       setLoading(false);
     }
@@ -86,8 +117,14 @@ export default function App() {
     fetchLibraries();
 
     const handleRouteFromUrl = async () => {
-      const pathname = decodeURIComponent(window.location.pathname);
-      if (!pathname || pathname === '/' || pathname.startsWith('/files/')) return;
+      let pathname = window.location.pathname;
+      try {
+        pathname = decodeURIComponent(pathname);
+      } catch (e) {
+        console.warn('Malformed pathname:', e);
+      }
+
+      if (!pathname || pathname === '/' || pathname.startsWith('/files/') || pathname.startsWith('/api/')) return;
 
       const segments = pathname.split('/').filter(Boolean);
       if (segments.length === 1) {
@@ -99,9 +136,11 @@ export default function App() {
         const cleanIconName = iconFile.endsWith('.svg') ? iconFile.slice(0, -4) : iconFile;
 
         try {
-          const res = await fetch(`/api/libraries/${encodeURIComponent(libName)}`);
-          const data = await res.json();
-          if (data.success && data.library?.icons?.[cleanIconName]) {
+          const data = await fetchJsonSafely(
+            `/api/libraries/${encodeURIComponent(libName)}`,
+            `/api/libraries/${encodeURIComponent(libName)}.json`
+          );
+          if (data && data.success && data.library?.icons?.[cleanIconName]) {
             const iconObj = data.library.icons[cleanIconName];
             setSelectedIcon({
               libraryName: libName,
@@ -126,7 +165,8 @@ export default function App() {
   // Handle Global Search
   const handleGlobalSearch = async (query: string) => {
     setGlobalSearchQuery(query);
-    if (!query.trim()) {
+    const q = query.trim().toLowerCase();
+    if (!q) {
       setSearchResults([]);
       setIsSearching(false);
       return;
@@ -134,14 +174,25 @@ export default function App() {
 
     setIsSearching(true);
     try {
-      let url = `/api/search?q=${encodeURIComponent(query.trim())}`;
+      let url = `/api/search?q=${encodeURIComponent(q)}`;
       if (selectedLibraryName) {
         url += `&library=${encodeURIComponent(selectedLibraryName)}`;
       }
-      const res = await fetch(url);
-      const data = await res.json();
-      if (data.success) {
-        setSearchResults(data.results || []);
+      
+      let data = await fetchJsonSafely(url, '/api/search.json');
+      if (data && data.success && Array.isArray(data.results)) {
+        let results = data.results;
+        // If static fallback was used, filter client-side
+        if (!url.includes('/api/search.json')) {
+          results = results.filter((item: any) => {
+            if (selectedLibraryName && item.libraryName !== selectedLibraryName) return false;
+            return (
+              item.iconName?.toLowerCase().includes(q) ||
+              item.libraryName?.toLowerCase().includes(q)
+            );
+          });
+        }
+        setSearchResults(results);
       }
     } catch (e) {
       console.error('Search error:', e);
@@ -155,9 +206,11 @@ export default function App() {
     setSelectedLibraryName(folderName);
     window.history.pushState({}, '', `/${encodeURIComponent(folderName)}`);
     try {
-      const res = await fetch(`/api/libraries/${encodeURIComponent(folderName)}`);
-      const data = await res.json();
-      if (data.success) {
+      const data = await fetchJsonSafely(
+        `/api/libraries/${encodeURIComponent(folderName)}`,
+        `/api/libraries/${encodeURIComponent(folderName)}.json`
+      );
+      if (data && data.success) {
         setSelectedLibraryData(data.library);
       }
     } catch (e) {
