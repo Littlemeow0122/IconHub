@@ -1,0 +1,6 @@
+{
+  "name": "SVG Library",
+  "description": "An SVG icon library explorer featuring folder-based SVG libraries, raw file serving, custom color tuning, animation support, global/local search, and multi-format code exporting.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
