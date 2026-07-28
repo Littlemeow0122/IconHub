@@ -1,7 +1,7 @@
 import fs from "fs";
 
-const input = "svg/SF Symbols/svg.json";
-const output = "svg/SF Symbols/svg-clean.json";
+const input = "svg/Academicons/svg.json";
+const output = "svg/Academicons/svg-clean.json";
 
 const data = JSON.parse(fs.readFileSync(input, "utf8"));
 
