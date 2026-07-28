@@ -377,7 +377,7 @@ export const ColorTunerModal: React.FC<ColorTunerModalProps> = ({ theme = 'dark'
                             <div className="relative w-8 h-8 rounded-lg overflow-hidden border border-zinc-600 shadow-inner flex items-center justify-center shrink-0">
                               <input
                                 type="color"
-                                value={currentColorVal.startsWith('#') ? currentColorVal : '#3B82F6'}
+                                value={currentColorVal.startsWith('#') ? currentColorVal : '#000000'}
                                 onChange={(e) => handleColorChange(target.id, e.target.value)}
                                 className="absolute -inset-2 w-12 h-12 cursor-pointer opacity-0 z-10"
                               />

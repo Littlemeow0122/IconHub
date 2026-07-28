@@ -86,7 +86,7 @@ export function extractColorTargets(svgString: string): ColorTarget[] {
         id: 'root-currentcolor',
         elementName: 'Icon Color (currentColor)',
         property: 'currentColor',
-        currentColor: '#3B82F6',
+        currentColor: '#000000',
         selectorType: 'inline'
       });
     }
@@ -99,7 +99,7 @@ export function extractColorTargets(svgString: string): ColorTarget[] {
         id: 'fallback-color',
         elementName: 'Icon Main Color',
         property: 'currentColor',
-        currentColor: '#3B82F6',
+        currentColor: '#000000',
         selectorType: 'inline'
       }
     ];
@@ -155,7 +155,7 @@ export function replaceSvgColors(
  */
 export function normalizeColor(colorStr: string): string {
   if (!colorStr) return '#000000';
-  if (colorStr === 'currentColor') return '#3B82F6';
+  if (colorStr === 'currentColor') return '#000000';
   if (colorStr.startsWith('#')) {
     if (colorStr.length === 4) {
       // #abc -> #aabbcc
